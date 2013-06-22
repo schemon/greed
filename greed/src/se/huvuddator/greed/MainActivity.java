@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
@@ -19,21 +20,34 @@ public class MainActivity extends Activity {
 		R.drawable.dice_4,
 		R.drawable.dice_5,
 		R.drawable.dice_6,
-		};
+	};
+
+	private ToggleButton[] mDices = new ToggleButton[NUMBER_OF_DICE];
+
+	private int[] mDiceValues = new int[NUMBER_OF_DICE];
 	
-	private ToggleButton[] mDices = new ToggleButton[6];
-	
-	private int[] mDiceValues = new int[6];
+	public static final int NUMBER_OF_DICE = 6;
 	
 	private int mScore = 0;
 	private int mTurnScore = 0;
-	private static final int MAX_TURN_SCORE = 1000;
-	private int mRounds = 0;
+	private static final int WIN_THRESHOLD = 10000;
+
+	private static final int MINIMUN_VALUE_TO_CONTINUE = 1;
+	private int mNumberOfTurns = 0;
 
 	private View mButtonThrow;
 	private TextView mTextScore;
 	private TextView mTextTurnScore;
+	private TextView mTextTurnCounter;
+	private TextView mTextLog;
 	
+	private View mButtonSave;
+
+	private int mLastThrowScore;
+
+	private boolean isNewTurn = true;
+
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -45,8 +59,11 @@ public class MainActivity extends Activity {
 		mDices[4] = (ToggleButton) findViewById(R.id.dice5);
 		mDices[5] = (ToggleButton) findViewById(R.id.dice6);
 		mButtonThrow = findViewById(R.id.buttonThrow);
+		mButtonSave = findViewById(R.id.buttonSave);
 		mTextScore = (TextView) findViewById(R.id.textScore);
 		mTextTurnScore = (TextView) findViewById(R.id.textTurnScore);
+		mTextTurnCounter = (TextView) findViewById(R.id.textRoundCounter);
+		mTextLog = (TextView) findViewById(R.id.logThrow);
 	}
 
 	@Override
@@ -56,67 +73,131 @@ public class MainActivity extends Activity {
 		return true;
 	}
 
+
+	public void onSave(View view) {
+		int[] scoringDiceValues = new int[mDiceValues.length];
+		for (int i = 0; i < mDices.length; i++) {
+			if(mDices[i].isEnabled()) {
+				scoringDiceValues[i] = mDiceValues[i];
+			} else {
+				scoringDiceValues[i] = -1;
+			}
+		}
+		ScoreResult scoreResult = new ScoreResult(scoringDiceValues, mTextLog);
+		mTurnScore += scoreResult.getScore();
+
+		boolean[] isDiceScoring = scoreResult.getIsDiceScoring();
+		for (int i = 0; i < isDiceScoring.length; i++) {
+			if(isDiceScoring[i]) {
+				mDices[i].setEnabled(false);
+			}
+		}
+		
+		onEndTurn();
+	}
+
+	public void onClickDie(View view) {
+		int[] scoringDiceValues = new int[mDiceValues.length];
+		for (int i = 0; i < mDices.length; i++) {
+			if(mDices[i].isChecked()) {
+				scoringDiceValues[i] = mDiceValues[i];
+			} else {
+				scoringDiceValues[i] = -1;
+			}
+		}
+		
+		int checkedDiceScore = new ScoreResult(scoringDiceValues, mTextLog).getScore();
+		if(0 < checkedDiceScore) {
+			mButtonThrow.setEnabled(true);
+		} else {
+			mButtonThrow.setEnabled(false);
+		}
+	}
+
+
+	/**
+	 * Throwing
+	 * 
+	 * @param view
+	 */
 	public void onThrow(View view) {
+		// If this is a new turn, reset dice, otherwise end last throw.
+		if(isNewTurn) {
+			setupTurn();
+		} else {
+			onEndThrow();
+		}
 		
+		mLastThrowScore = 0;
+		int[] scoringDiceValues = new int[mDiceValues.length];
 		
-		int[] occurences = new int[mDiceValues.length];
-		
-		for (int i = 0; i < 6; i++) {
-			if(!mDices[i].isChecked()) {
-				mDiceValues[i] = mRandom.nextInt(6);
-				occurences[mDiceValues[i]] += 1;
-				mDices[i].setBackgroundResource(DiceDrawables[mDiceValues[i]]);
+		for (int i = 0; i < mDices.length; i++) {
+			if(mDices[i].isEnabled()) {
+				int value = mRandom.nextInt(6);
+				mDices[i].setBackgroundResource(DiceDrawables[value]);
+				mDiceValues[i] = value;
+				scoringDiceValues[i] = mDiceValues[i];
+			} else {
+				scoringDiceValues[i] = -1;
 			}
 		}
 
-		// Init highest value
-		int highestValueSoFar = 0;
+		mLastThrowScore = new ScoreResult(scoringDiceValues, mTextLog).getScore();
 		
-		// Look for singles
-		if(1 == occurences[0]) {
-			highestValueSoFar = Math.max(highestValueSoFar, 100);
-		} else if(1 == occurences[5]) {
-			highestValueSoFar = Math.max(highestValueSoFar, 50);
+		if(0 == mLastThrowScore || (MINIMUN_VALUE_TO_CONTINUE > mLastThrowScore && 0 == mTurnScore)) {
+			mTurnScore = 0;
+			mTextLog.append("\nTurn ends with no points!");
+			onEndTurn();
+		} else {
+			mButtonThrow.setEnabled(false);
+			mButtonSave.setEnabled(true);
 		}
-		
-		// look for doubles
-		if(2 == occurences[0]) {
-			highestValueSoFar = Math.max(highestValueSoFar, 200);
-		} else if(2 == occurences[5]) {
-			highestValueSoFar = Math.max(highestValueSoFar, 100);
+	}
+
+	private void setupTurn() {
+		for (int i = 0; i < mDices.length; i++) {
+			mDices[i].setChecked(false);
+			mDices[i].setEnabled(true);
 		}
-		
-		// Look for triplets
-		for (int i = 0; i < occurences.length; i++) {
-			if(3 <= occurences[i]) {
-				if(0 == i) {
-					highestValueSoFar = 1000;
-					break;
-				} else {
-					highestValueSoFar = Math.max(highestValueSoFar, (i+1)*1000);
-				}
-			} 
-		}
-		
-		// Look for ladder
-		boolean foundLadder = true;
-		for (int i = 0; i < occurences.length; i++) {
-			if(1 != occurences[i]) {
-				foundLadder = false;
-				break;
+		isNewTurn = false;
+	}
+
+	private void onEndThrow() {
+		int[] scoringDiceValues = new int[mDiceValues.length];
+		for (int i = 0; i < mDices.length; i++) {
+			if(mDices[i].isChecked()) {
+				scoringDiceValues[i] = mDiceValues[i];
+				mDices[i].setChecked(false);
+				mDices[i].setEnabled(false);
+			} else {
+				scoringDiceValues[i] = -1;
 			}
 		}
+		mTurnScore += new ScoreResult(scoringDiceValues, mTextLog).getScore();
+		mTextTurnScore.setText("Turn score: " +mTurnScore);
 		
-		if(foundLadder) {
-			highestValueSoFar = Math.max(highestValueSoFar, 1000);
+		boolean hasScoredWithAll = new ScoreResult(mDiceValues, mTextLog).hasScoredWithAll();
+		if(hasScoredWithAll) {
+			for (int i = 0; i < mDices.length; i++) {
+				mDices[i].setEnabled(true);
+			}
 		}
+
+	}
+
+	private void onEndTurn() {
+		mNumberOfTurns += 1;
+
+		mScore += mTurnScore;
+		mTurnScore = 0;
+
+		mTextTurnCounter.setText("Turns: " +mNumberOfTurns);
+		mTextScore.setText("Score: " +mScore);
+		mTextTurnScore.setText("Turn score: " +mTurnScore);
+
+		mButtonSave.setEnabled(false);
+		mButtonThrow.setEnabled(true);
 		
-		mTurnScore = highestValueSoFar;
-		
-		mTextTurnScore.setText("Score: " +mTurnScore);
-		
-		if(MAX_TURN_SCORE <= highestValueSoFar) {
-			mButtonThrow.setEnabled(false);
-		}
+		isNewTurn  = true;
 	}
 }
