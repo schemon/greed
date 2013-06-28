@@ -18,30 +18,26 @@
             android:id="@+id/textScore"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Score: 0"
             android:textAppearance="?android:attr/textAppearanceMedium" />
 
         <TextView
             android:id="@+id/textRoundCounter"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Rounds: 0"
             android:textAppearance="?android:attr/textAppearanceMedium" />
 
         <TextView
             android:id="@+id/textTurnScore"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Turn score: 0"
             android:textAppearance="?android:attr/textAppearanceMedium" />
 
         <TextView
             android:id="@+id/logThrow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="" 
-            android:visibility="gone"/>
-
+            android:text=""
+            android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout
@@ -94,6 +90,13 @@
                 style="@style/Dice"
                 android:contentDescription="@string/dice_description" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/textThrowInfo"
+            android:gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" 
+            android:text="press throw to start"/>
     </LinearLayout>
 
     <Button
@@ -101,26 +104,16 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
+        android:layout_alignParentRight="true"
         android:onClick="onThrow"
         android:text="Throw" />
-
-    <Button
-        android:id="@+id/Score"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/buttonThrow"
-        android:layout_alignBottom="@+id/buttonThrow"
-        android:layout_alignRight="@+id/linearLayout1"
-        android:text="Score" />
 
     <Button
         android:id="@+id/buttonSave"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/buttonThrow"
-        android:layout_alignBottom="@+id/buttonThrow"
-        android:layout_alignLeft="@+id/linearLayout1"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
         android:enabled="false"
         android:onClick="onSave"
         android:text="Save" />

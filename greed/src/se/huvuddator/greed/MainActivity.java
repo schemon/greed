@@ -2,20 +2,21 @@ package se.huvuddator.greed;
 
 import java.util.Random;
 
-import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.app.DialogFragment;
+import android.support.v4.app.FragmentActivity;
 import android.view.Menu;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ToggleButton;
 
-public class MainActivity extends Activity {
+public class MainActivity extends FragmentActivity  {
 	private Random mRandom = new Random(System.currentTimeMillis());
 
 	// Static game constants
 	private static final int WIN_THRESHOLD = 10000;
-	private static final int MINIMUN_VALUE_TO_CONTINUE = 1;
+	private static final int MINIMUN_VALUE_TO_CONTINUE = 300;
 	public static final int NUMBER_OF_DICE = 6;
 
 	// Game state
@@ -26,17 +27,20 @@ public class MainActivity extends Activity {
 	private int mTurnScore = 0;
 	private int mNumberOfTurns = 0;
 	private boolean mIsNewTurn = true;
-	private boolean mIsThrowEnabled = false;
+	private boolean mIsThrowEnabled = true;
 	private boolean mIsSavedEnabled = false;
+	private String mLastThrowInfo = "";
 
 	// Views
 	private View mButtonThrow;
 	private TextView mTextScore;
 	private TextView mTextTurnScore;
 	private TextView mTextTurnCounter;
+	private TextView mTextThrowInfo;
 	private TextView mTextLog;
 	private ToggleButton[] mDices = new ToggleButton[NUMBER_OF_DICE];
 	private View mButtonSave;
+
 	private static final int[] DiceDrawables = {
 		R.drawable.dice_1, 
 		R.drawable.dice_2,
@@ -45,8 +49,6 @@ public class MainActivity extends Activity {
 		R.drawable.dice_5,
 		R.drawable.dice_6,
 	};
-
-
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +65,9 @@ public class MainActivity extends Activity {
 		mTextScore = (TextView) findViewById(R.id.textScore);
 		mTextTurnScore = (TextView) findViewById(R.id.textTurnScore);
 		mTextTurnCounter = (TextView) findViewById(R.id.textRoundCounter);
+		mTextThrowInfo = (TextView) findViewById(R.id.textThrowInfo);
 		mTextLog = (TextView) findViewById(R.id.logThrow);
+		renderViews();
 	}
 
 	@Override
@@ -73,14 +77,6 @@ public class MainActivity extends Activity {
 		return true;
 	}
 
-
-	/*
-	 * 	private int[] mDiceValues = new int[NUMBER_OF_DICE];
-	private int mScore = 0;
-	private int mTurnScore = 0;
-	private int mNumberOfTurns = 0;
-	private boolean isNewTurn = true;
-	 */
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
 		outState.putIntArray("diceValues", mDiceValues);
@@ -92,7 +88,7 @@ public class MainActivity extends Activity {
 		outState.putBoolean("isNewTurn", mIsNewTurn);
 		outState.putBoolean("isThrowEnabled", mIsThrowEnabled);
 		outState.putBoolean("isSaveEnabled", mIsSavedEnabled);
-
+		outState.putString("lastThrowInfo", mLastThrowInfo);
 		super.onSaveInstanceState(outState);
 	}
 
@@ -108,9 +104,15 @@ public class MainActivity extends Activity {
 		mIsNewTurn = savedInstanceState.getBoolean("isNewTurn");
 		mIsThrowEnabled = savedInstanceState.getBoolean("isThrowEnabled");
 		mIsSavedEnabled = savedInstanceState.getBoolean("isSaveEnabled");
+		mLastThrowInfo = savedInstanceState.getString("lastThrowInfo");
 		renderViews();
 	}
 
+	@Override
+	public void onBackPressed() {
+		DialogFragment newFragment = ExitDialog.newInstance();
+	    newFragment.show(getSupportFragmentManager(), "dialog");
+	}
 
 	private void renderViews() {
 		mButtonThrow.setEnabled(mIsThrowEnabled);
@@ -119,6 +121,7 @@ public class MainActivity extends Activity {
 		mTextScore.setText("Score: " +mScore);
 		mTextTurnScore.setText("Turn score: " +mTurnScore);
 		mTextTurnCounter.setText("Turns: " +mNumberOfTurns);
+		mTextThrowInfo.setText(mLastThrowInfo);
 
 		for (int i = 0; i < NUMBER_OF_DICE; i++) {
 			mDices[i].setBackgroundResource(DiceDrawables[mDiceValues[i]]);
@@ -166,37 +169,47 @@ public class MainActivity extends Activity {
 			mDiceChecked[i] = mDices[i].isChecked();
 		}
 
-		int[] scoringDiceValues = new int[NUMBER_OF_DICE];
-		for (int i = 0; i < NUMBER_OF_DICE; i++) {
-			if(mDiceChecked[i]) {
-				scoringDiceValues[i] = mDiceValues[i];
-			} else {
-				scoringDiceValues[i] = -1;
-			}
-		}
+		int[] checkedDice = getCheckedDiceValues();
+		int[] enabledDice = getEnabledDiceValues();
 
-		int[] possiblyScoringDice = new int[NUMBER_OF_DICE];
-		for (int i = 0; i < NUMBER_OF_DICE; i++) {
-			if(mDiceEnabled[i]) {
-				possiblyScoringDice[i] = mDiceValues[i];
-			} else {
-				possiblyScoringDice[i] = -1;
-			}
-		}
-
-		ScoreResult scoreResult = new ScoreResult(possiblyScoringDice, mTextLog);
-
-		boolean[] isDiceScoring = scoreResult.getIsDiceScoring();
+		// Only allow checking dice that is part of possibly scoring combination
+		ScoreResult enabledDiceScore = new ScoreResult(enabledDice, mTextLog);
+		boolean[] isDiceScoring = enabledDiceScore.getIsDiceScoring();
 		for (int i = 0; i < NUMBER_OF_DICE; i++) {
 			if(mDiceChecked[i] && !isDiceScoring[i]) {
 				mDiceChecked[i] = false;
 			}
 		}
 
-		int checkedDiceScore = scoreResult.getScore();
+		// Only allow save if user has checked a scoring combination
+		int checkedDiceScore = new ScoreResult(checkedDice, mTextLog).getScore();
 		mIsThrowEnabled = (0 < checkedDiceScore);
 
 		renderViews();
+	}
+
+	private int[] getCheckedDiceValues() {
+		int[] checkedDice = new int[NUMBER_OF_DICE];
+		for (int i = 0; i < NUMBER_OF_DICE; i++) {
+			if(mDiceChecked[i]) {
+				checkedDice[i] = mDiceValues[i];
+			} else {
+				checkedDice[i] = -1;
+			}
+		}
+		return checkedDice;
+	}
+
+	private int[] getEnabledDiceValues() {
+		int[] enabledDice = new int[NUMBER_OF_DICE];
+		for (int i = 0; i < NUMBER_OF_DICE; i++) {
+			if(mDiceEnabled[i]) {
+				enabledDice[i] = mDiceValues[i];
+			} else {
+				enabledDice[i] = -1;
+			}
+		}
+		return enabledDice;
 	}
 
 
@@ -206,12 +219,14 @@ public class MainActivity extends Activity {
 	 * @param view
 	 */
 	public void onThrow(View view) {
+		mLastThrowInfo = "";
 		// If this is a new turn, reset dice, otherwise end last throw.
 		if(mIsNewTurn) {
 			setupTurn();
 		} else {
 			onEndThrow();
 		}
+
 
 		int[] scoringDiceValues = new int[NUMBER_OF_DICE];
 
@@ -229,8 +244,7 @@ public class MainActivity extends Activity {
 
 		if(0 == throwScore || (MINIMUN_VALUE_TO_CONTINUE > throwScore && 0 == mTurnScore)) {
 			mTurnScore = 0;
-			mTextLog.append("\nTurn ends with no points!");
-			Toast.makeText(this, "Turn ends with no points!", Toast.LENGTH_SHORT).show();
+			mLastThrowInfo = throwScore +" points is not enough!";
 			onEndTurn();
 		} else {
 			mIsThrowEnabled = false;
@@ -259,12 +273,12 @@ public class MainActivity extends Activity {
 				scoringDiceValues[i] = -1;
 			}
 		}
-		mTurnScore += new ScoreResult(scoringDiceValues, mTextLog).getScore();
-		mTextTurnScore.setText("Turn score: " +mTurnScore);
+		int throwScore = new ScoreResult(scoringDiceValues, mTextLog).getScore();
+		mTurnScore += throwScore;
 
 		boolean hasScoredWithAll = new ScoreResult(mDiceValues, mTextLog).hasScoredWithAll();
 		if(hasScoredWithAll) {
-			Toast.makeText(this, "Scored with all!", Toast.LENGTH_SHORT).show();
+			mLastThrowInfo = "Scored with all!";
 			for (int i = 0; i < NUMBER_OF_DICE; i++) {
 				mDiceEnabled[i] = true;
 			}
@@ -275,9 +289,40 @@ public class MainActivity extends Activity {
 	private void onEndTurn() {
 		mNumberOfTurns += 1;
 		mScore += mTurnScore;
+
+		if(mScore >= WIN_THRESHOLD) {
+			onWin();
+		}
+
 		mTurnScore = 0;
 		mIsSavedEnabled = false;
 		mIsThrowEnabled = true;
 		mIsNewTurn  = true;
 	}
+
+	private void onWin() {
+		Intent intent = new Intent(this, HighScoreActivity.class);
+		intent.putExtra(HighScoreActivity.INTENT_EXTRAS_SCORE, mScore);
+		intent.putExtra(HighScoreActivity.INTENT_EXTRAS_TURNS, mNumberOfTurns);
+		startActivity(intent);
+		resetGameState();
+	}
+
+	private void resetGameState() {
+		mDiceValues = new int[NUMBER_OF_DICE];
+		mDiceChecked = new boolean[NUMBER_OF_DICE];
+		mDiceEnabled = new boolean[NUMBER_OF_DICE];
+		mScore = 0;
+		mTurnScore = 0;
+		mNumberOfTurns = 0;
+		mIsNewTurn = true;
+		mIsThrowEnabled = true;
+		mIsSavedEnabled = false;
+		renderViews();
+	}
+
+	public void onExit() {
+		finish();
+	}
+
 }
