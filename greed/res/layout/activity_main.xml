@@ -109,13 +109,13 @@
         android:text="Throw" />
 
     <Button
-        android:id="@+id/buttonSave"
+        android:id="@+id/buttonScore"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
         android:enabled="false"
-        android:onClick="onSave"
-        android:text="Save" />
+        android:onClick="onScore"
+        android:text="Score" />
 
 </RelativeLayout>

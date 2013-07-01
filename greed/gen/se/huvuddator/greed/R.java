@@ -52,7 +52,7 @@ public final class R {
         public static final int action_settings=0x7f080014;
         public static final int button1=0x7f080001;
         public static final int buttonNo=0x7f080013;
-        public static final int buttonSave=0x7f080010;
+        public static final int buttonScore=0x7f080010;
         public static final int buttonThrow=0x7f08000f;
         public static final int buttonYes=0x7f080012;
         public static final int dice1=0x7f080008;
@@ -88,6 +88,11 @@ public final class R {
         public static final int dialog_exit_title=0x7f050004;
         public static final int dice_description=0x7f050003;
         public static final int hello_world=0x7f050002;
+        public static final int insufficient_points=0x7f05000b;
+        public static final int number_of_turns=0x7f05000a;
+        public static final int score=0x7f050008;
+        public static final int score_with_all=0x7f05000c;
+        public static final int turn_score=0x7f050009;
     }
     public static final class style {
         /** 

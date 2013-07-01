@@ -11,4 +11,9 @@
 	<string name="dialog_exit_positive">Yes</string>
     <string name="dialog_exit_negative">No</string>
     
+    <string name="score">Score: %d</string>
+    <string name="turn_score">Turn score: %d</string>
+    <string name="number_of_turns">Turns: %d</string>
+    <string name="insufficient_points">%d points is not enough!</string>
+    <string name="score_with_all">Scored with all!</string>
 </resources>
