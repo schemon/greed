@@ -5,7 +5,16 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
 
-public class HighScoreActivity extends Activity {
+/**
+ * Shows score and number of turns passed in the intent extra.<br>
+ * To pass score and turn use these strings:<br>
+ * {@code ScoreActivity.INTENT_EXTRAS_SCORE} and <br>
+ * {@code ScoreActivity.INTENT_EXTRAS_TURNS} <br>
+ * 
+ * @author simarv
+ *
+ */
+public class ScoreActivity extends Activity {
 
 	public static final String INTENT_EXTRAS_SCORE = "intent_extras_score";
 	public static final String INTENT_EXTRAS_TURNS = "intent_extras_turns";

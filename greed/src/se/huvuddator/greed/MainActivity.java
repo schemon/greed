@@ -13,10 +13,15 @@ import android.widget.ToggleButton;
 /**
  * Main activity of the game Greed.
  * This activity has three responsibilities:<br>
- * - Holds the game state<br>
- * - Handles input from user<br>
- * - Game logic (updating game state from input)<br>
- * 
+ * - Holds the game state.<br>
+ * - Handles input from user.<br>
+ * - Game logic (updating game state from input).<br>
+ * <br>
+ * The user interactions are: <br>
+ * - Throwing dice {@code onThrow(View view)}.<br>
+ * - End turn and score {@code onScore(View view)}.<br>
+ * - Clicking a die to take it aside for scoring {@code onClickDie(View view)}.<br>
+ * - Click back button to quit playing {@code onBackPressed(View view)}.
  * @author simarv
  *
  */
@@ -36,7 +41,7 @@ public class MainActivity extends FragmentActivity  {
 	private static final int WIN_THRESHOLD = 10000;
 	private static final int MINIMUN_VALUE_TO_CONTINUE = 300;
 	public static final int NUMBER_OF_DICE = 6;
-	private static final int DICE_VALUE_NOT_SET = -1;
+	public static final int DIE_VALUE_NOT_SET = -1;
 	private static final int[] DiceDrawables = {
 		R.drawable.dice_1, 
 		R.drawable.dice_2,
@@ -161,7 +166,39 @@ public class MainActivity extends FragmentActivity  {
 	}
 
 	/**
-	 * Called when user wants to end turn and collect points
+	 * Called when user wants to throw enabled dice not set aside. 
+	 * 
+	 * @param view
+	 */
+	public void onThrow(View view) {
+		mLastThrowInfo = "";
+		// If this is a new turn, reset dice, otherwise end last throw.
+		if(mIsNewTurn) {
+			onStartTurn();
+		} else {
+			onEndLastThrow();
+		}
+
+		// Throw the dice that are enabled
+		throwAllEnabledDice();
+
+		int throwScore = new ScoreResult(getEnabledDiceValues(), mTextLog).getScore();
+
+		// If score is not enough the turn should be ended and turn score should be lost.
+		if(isThrowScoreInsufficient(throwScore)) {
+			mLastThrowInfo = getString(R.string.insufficient_points, throwScore); 
+			mTurnScore = 0;
+			onEndTurn();
+		} else {
+			mIsThrowEnabled = false;
+			mIsSaveScoreEnabled = true;
+		}
+
+		renderViews();
+	}
+	
+	/**
+	 * Called when user wants to end turn and collect points.
 	 * @param view
 	 */
 	public void onScore(View view) {
@@ -192,6 +229,13 @@ public class MainActivity extends FragmentActivity  {
 		renderViews();
 	}
 
+	/**
+	 * Called when user wants to set aside one die for scoring. 
+	 * If a die is not part of a scoring combination the die will be unmarked.
+	 * 
+	 * The throw button will be enabled if at least one die is correctly marked.
+	 * @param view
+	 */
 	public void onClickDie(View view) {
 		// Should not be here if state is "new turn". Clean up and return.
 		if(mIsNewTurn) {
@@ -210,101 +254,18 @@ public class MainActivity extends FragmentActivity  {
 		uncheckNonScoringDice();		
 
 		// Only allow throw if user has checked a scoring combination
-		int checkedDiceScore = new ScoreResult(getValuesOfCheckedDice(), mTextLog).getScore();
-		mIsThrowEnabled = (0 < checkedDiceScore);
-
-		renderViews();
-	}
-
-	/**
-	 * Sets non scoring die as not checked. 
-	 * renderViews() has to be called before change is visible to user.
-	 */
-	private void uncheckNonScoringDice() {
-		ScoreResult enabledDiceScore = new ScoreResult(
-				getEnabledDiceValues(),
+		ScoreResult checkedDiceScore = new ScoreResult(
+				getValuesOfCheckedDice(), 
 				mTextLog);
-		
-		boolean[] isDiceScoring = enabledDiceScore.getIsDiceScoring();
-		for (int i = 0; i < NUMBER_OF_DICE; i++) {
-			if(mDiceChecked[i] && !isDiceScoring[i]) {
-				mDiceChecked[i] = false;
-			}
-		}		
-	}
-
-	/**
-	 * Updates values in mDiceChecked to actual value of dice views.
-	 */
-	private void updateIsCheckedValues() {
-		for (int i = 0; i < NUMBER_OF_DICE; i++) {
-			mDiceChecked[i] = mDices[i].isChecked();
-		}
-	}
-	
-	private int[] getValuesOfCheckedDice() {
-		int[] checkedDice = createDiceValues();
-		for (int i = 0; i < NUMBER_OF_DICE; i++) {
-			if(mDiceChecked[i]) {
-				checkedDice[i] = mDiceValues[i];
-			}
-		}
-		return checkedDice;
-	}
-
-	private int[] getEnabledDiceValues() {
-		int[] enabledDice = createDiceValues();
-		for (int i = 0; i < NUMBER_OF_DICE; i++) {
-			if(mDiceEnabled[i]) {
-				enabledDice[i] = mDiceValues[i];
-			}
-		}
-		return enabledDice;
-	}
-
-
-	/**
-	 * Throwing
-	 * 
-	 * @param view
-	 */
-	public void onThrow(View view) {
-		mLastThrowInfo = "";
-		// If this is a new turn, reset dice, otherwise end last throw.
-		if(mIsNewTurn) {
-			setupTurn();
-		} else {
-			onEndThrow();
-		}
-
-
-		int[] scoringDiceValues = new int[NUMBER_OF_DICE];
-
-		for (int i = 0; i < NUMBER_OF_DICE; i++) {
-			if(mDiceEnabled[i]) {
-				int value = mRandom.nextInt(6);
-				mDiceValues[i] = value;
-				scoringDiceValues[i] = mDiceValues[i];
-			} else {
-				scoringDiceValues[i] = -1;
-			}
-		}
-
-		int throwScore = new ScoreResult(scoringDiceValues, mTextLog).getScore();
-
-		if(0 == throwScore || (MINIMUN_VALUE_TO_CONTINUE > throwScore && 0 == mTurnScore)) {
-			mTurnScore = 0;
-			mLastThrowInfo = getString(R.string.insufficient_points, throwScore); 
-			onEndTurn();
-		} else {
-			mIsThrowEnabled = false;
-			mIsSaveScoreEnabled = true;
-		}
+		mIsThrowEnabled = (0 < checkedDiceScore.getScore());
 
 		renderViews();
 	}
 
-	private void setupTurn() {
+	/**
+	 * Called in start of turn to setup game state.
+	 */
+	protected void onStartTurn() {
 		for (int i = 0; i < NUMBER_OF_DICE; i++) {
 			mDiceChecked[i] = false;
 			mDiceEnabled[i] = true;
@@ -312,7 +273,14 @@ public class MainActivity extends FragmentActivity  {
 		mIsNewTurn = false;
 	}
 
-	private void onEndThrow() {
+	/**
+	 * Called at the beginning of a new throw to end last.
+	 * This method is triggered when user clicks throw. <br>
+	 * <br>
+	 * Dice marked to be set aside will be set as disabled
+	 * and their score value will be accumulated to turn score.
+	 */
+	protected void onEndLastThrow() {
 		int[] scoringDiceValues = createDiceValues();
 		for (int i = 0; i < NUMBER_OF_DICE; i++) {
 			if(mDiceChecked[i]) {
@@ -334,7 +302,11 @@ public class MainActivity extends FragmentActivity  {
 
 	}
 
-	private void onEndTurn() {
+	/**
+	 * Called at the end of a turn to accumulate score with turn score.
+	 * The game state is prepared for next turn.
+	 */
+	protected void onEndTurn() {
 		mNumberOfTurns += 1;
 		mScore += mTurnScore;
 
@@ -348,15 +320,20 @@ public class MainActivity extends FragmentActivity  {
 		mIsNewTurn  = true;
 	}
 
-	private void onWin() {
-		Intent intent = new Intent(this, HighScoreActivity.class);
-		intent.putExtra(HighScoreActivity.INTENT_EXTRAS_SCORE, mScore);
-		intent.putExtra(HighScoreActivity.INTENT_EXTRAS_TURNS, mNumberOfTurns);
+	/**
+	 * Called when user has reached {@code WIN_THRESHOLD}.
+	 */
+	protected void onWin() {
+		Intent intent = new Intent(this, ScoreActivity.class);
+		intent.putExtra(ScoreActivity.INTENT_EXTRAS_SCORE, mScore);
+		intent.putExtra(ScoreActivity.INTENT_EXTRAS_TURNS, mNumberOfTurns);
 		startActivity(intent);
 		resetGameState();
 		renderViews();
 	}
-
+	
+	/*	-------- Private modifiers of game state ----------*/
+	
 	private void resetGameState() {
 		mDiceValues = new int[NUMBER_OF_DICE];
 		mDiceChecked = new boolean[NUMBER_OF_DICE];
@@ -367,22 +344,93 @@ public class MainActivity extends FragmentActivity  {
 		mIsNewTurn = true;
 		mIsThrowEnabled = true;
 		mIsSaveScoreEnabled = false;
+	}	
+	
+	private void throwAllEnabledDice() {
+		for (int i = 0; i < NUMBER_OF_DICE; i++) {
+			if(mDiceEnabled[i]) {
+				int value = mRandom.nextInt(6);
+				mDiceValues[i] = value;
+			}
+		}		
 	}
 	
 	/**
-	 * Creates a int array of length {@link NUMBER_OF_DICE}
-	 *  with values {@link DICE_VALUE_NOT_SET}
+	 * Sets non scoring die as not checked. 
+	 * renderViews() has to be called before change is visible to user.
+	 */
+	private void uncheckNonScoringDice() {
+		ScoreResult scoreResult = new ScoreResult(
+				getEnabledDiceValues(),
+				mTextLog);
+		
+		boolean[] isDiceScoring = scoreResult.getIsDiceScoring();
+		for (int i = 0; i < NUMBER_OF_DICE; i++) {
+			if(mDiceChecked[i] && !isDiceScoring[i]) {
+				mDiceChecked[i] = false;
+			}
+		}		
+	}
+
+	/**
+	 * Updates values in mDiceChecked to actual value of dice views.
+	 */
+	private void updateIsCheckedValues() {
+		for (int i = 0; i < NUMBER_OF_DICE; i++) {
+			mDiceChecked[i] = mDices[i].isChecked();
+		}
+	}
+	
+	/*	--------------- Private getters ------------------ */
+	
+	/**
+	 * Creates a int array of length {@code NUMBER_OF_DICE}
+	 *  with values {@code DICE_VALUE_NOT_SET}
 	 */
 	private static int[] createDiceValues() {
 		int[] diceValues = new int[NUMBER_OF_DICE];
 		for (int i = 0; i < diceValues.length; i++) {
-			diceValues[i] = DICE_VALUE_NOT_SET;
+			diceValues[i] = DIE_VALUE_NOT_SET;
 		}
 		return diceValues;
 	}
 
-	public void onExit() {
-		finish();
+	
+	/**
+	 * Returns an int array with eye value of dice that are checked.
+	 * For dice that are not checked the value will be {@code DICE_VALUE_NOT_SET}
+	 * @return
+	 */
+	private int[] getValuesOfCheckedDice() {
+		int[] checkedDice = createDiceValues();
+		for (int i = 0; i < NUMBER_OF_DICE; i++) {
+			if(mDiceChecked[i]) {
+				checkedDice[i] = mDiceValues[i];
+			}
+		}
+		return checkedDice;
 	}
 
+	/**
+	 * Returns an int array with eye value of dice that are enabled.
+	 * For dice that are not checked the value will be {@code DICE_VALUE_NOT_SET}
+	 * @return
+	 */	
+	private int[] getEnabledDiceValues() {
+		int[] enabledDice = createDiceValues();
+		for (int i = 0; i < NUMBER_OF_DICE; i++) {
+			if(mDiceEnabled[i]) {
+				enabledDice[i] = mDiceValues[i];
+			}
+		}
+		return enabledDice;
+	}
+	
+	private boolean isThrowScoreInsufficient(int throwScore) {
+		return 0 == throwScore 
+				|| (MINIMUN_VALUE_TO_CONTINUE > throwScore 
+						&& 0 == mTurnScore);
+	}
+	
+	
 }

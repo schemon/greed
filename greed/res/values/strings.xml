@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">hej</string>
+    <string name="app_name">Greed</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
 	<string name="dice_description">A dice that you can roll</string>

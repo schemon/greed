@@ -23,7 +23,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="se.huvuddator.greed.HighScoreActivity"
+            android:name="se.huvuddator.greed.ScoreActivity"
             android:label="@string/app_name" >
         </activity>
     </application>
